@@ -36,7 +36,6 @@
       </a>
       <nav class="nav-links">
         <a href="#browse" class="nav-link">插件市场</a>
-        <a href="#install" class="nav-link">一键安装</a>
         <a href="#rank" class="nav-link">排行榜</a>
         <a href="#assistant" class="nav-link">智能助手</a>
         <a href="https://github.com/deepseek-ai/deepseek-harness" target="_blank" rel="noopener" class="nav-link nav-external">官方仓库 ↗</a>
@@ -154,7 +153,7 @@
       <div class="section-head">
         <div>
           <h2 class="section-title">🏆 Stars 排行榜 Top 10</h2>
-          <p class="section-desc">按 GitHub Stars 动态排名，数据每小时自动更新</p>
+          <p class="section-desc">按 GitHub Stars 动态排名，数据每日自动更新</p>
         </div>
       </div>
       <div class="rank-list" id="rankList"></div>
@@ -165,65 +164,27 @@
       <div class="section-head">
         <div>
           <h2 class="section-title">30 秒上手 DSH</h2>
-          <p class="section-desc">一条命令启动，三步装好你的第一个插件</p>
+          <p class="section-desc">一条命令启动，三条命令装插件</p>
         </div>
       </div>
       <div class="guide-grid">
         <div class="guide-card">
           <div class="guide-step">01</div>
           <h3>启动 Harness</h3>
-          <p>安装 Node.js 后，一行命令拉起 Web 界面</p>
+          <p>Node.js 环境下一行命令拉起 Web 界面</p>
           <div class="code-block"><span class="code-prompt">$</span> npx @deepseek-ai/dsh web</div>
         </div>
         <div class="guide-card">
           <div class="guide-step">02</div>
-          <h3>装「插件市场」</h3>
-          <p>一行命令装好社区插件市场，之后全程不用敲命令</p>
-          <div class="code-block"><span class="code-prompt">↓</span> 复制下方「🚀 一键安装」命令</div>
+          <h3>找到插件</h3>
+          <p>在本站搜索或让智能助手推荐，进入插件 GitHub 主页</p>
+          <div class="code-block"><span class="code-prompt">#</span> 查看插件 README 获取安装名</div>
         </div>
         <div class="guide-card">
           <div class="guide-step">03</div>
-          <h3>网页一键安装</h3>
-          <p>重启后进入「设置 → DSH 插件市场」，搜索任意插件点「安装」</p>
-          <div class="code-block"><span class="code-prompt">✓</span> 搜索 → 点「安装」→ 完成</div>
-        </div>
-      </div>
-    </section>
-
-    <!-- 一键安装 -->
-    <section class="section" id="install">
-      <div class="section-head">
-        <div>
-          <h2 class="section-title">🚀 小白也能一键安装</h2>
-          <p class="section-desc">装好社区「插件市场」，之后所有插件都在网页里点一下就能装</p>
-        </div>
-      </div>
-      <div class="install-hero">
-        <div class="install-hero-main">
-          <h3>DSH 插件市场（社区推荐）</h3>
-          <p>把它装进 DSH，你就能在「设置 → DSH 插件市场」里像逛 App Store 一样：搜索、一键安装、自动更新、已装识别，全程无需命令行。</p>
-          <div class="install-meta">
-            <span>🔍 自动识别 skill / cordis 插件 / agent 预设 / 安装脚本</span>
-            <span>🔄 自动更新 + 版本检测</span>
-            <span>🌐 中英双语界面</span>
-            <span>🛡️ 安装脚本二次确认 + 密钥不外泄</span>
-          </div>
-          <a class="btn btn-primary install-btn" href="https://github.com/bradeGithub/DSH-Plugins-Marketplace" target="_blank" rel="noopener">查看项目仓库 ↗</a>
-        </div>
-        <div class="install-cmds">
-          <div class="install-tab">
-            <button class="os-tab active" data-os="win">Windows</button>
-            <button class="os-tab" data-os="mac">macOS / Linux</button>
-          </div>
-          <div class="install-code" data-os-code="win">
-            <div class="install-code-text"><span class="code-prompt">PS&gt;</span> irm https://raw.githubusercontent.com/bradeGithub/DSH-Plugins-Marketplace/main/install.ps1 | iex</div>
-            <button class="copy-btn" data-copy="irm https://raw.githubusercontent.com/bradeGithub/DSH-Plugins-Marketplace/main/install.ps1 | iex">复制</button>
-          </div>
-          <div class="install-code hidden" data-os-code="mac">
-            <div class="install-code-text"><span class="code-prompt">$</span> curl -sL https://raw.githubusercontent.com/bradeGithub/DSH-Plugins-Marketplace/main/install.sh | bash</div>
-            <button class="copy-btn" data-copy="curl -sL https://raw.githubusercontent.com/bradeGithub/DSH-Plugins-Marketplace/main/install.sh | bash">复制</button>
-          </div>
-          <div class="install-note">⚠️ 安装完成后重启 DSH（重新运行 <code>dsh web</code>）再刷新页面生效。</div>
+          <h3>安装使用</h3>
+          <p>在 DSH 内用 /plugin 安装，或直接命令行安装</p>
+          <div class="code-block"><span class="code-prompt">$</span> dsh plugin add &lt;plugin&gt;</div>
         </div>
       </div>
     </section>
@@ -233,7 +194,7 @@
     <div class="footer-inner">
       <div class="footer-brand">
         <span class="brand-text">DSH<span class="brand-accent">·</span>PluginHub</span>
-        <p>非官方社区项目，数据源自 GitHub <code>dsh-plugin</code> 生态，每小时定时同步。</p>
+        <p>非官方社区项目，数据源自 GitHub <code>dsh-plugin</code> 生态，每日定时同步。</p>
       </div>
       <div class="footer-links">
         <a href="https://github.com/deepseek-ai/deepseek-harness" target="_blank" rel="noopener">官方仓库</a>
@@ -262,27 +223,24 @@
           <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8V4H8"/><rect x="4" y="8" width="16" height="12" rx="2"/><path d="M2 14h2M20 14h2M15 13v2M9 13v2"/></svg>
         </span>
         <div>
-          <div class="assistant-name">插件导购 Agent</div>
+          <div class="assistant-name">插件导购助手</div>
           <div class="assistant-status"><span class="pulse-dot"></span>在线 · 已学习 <span id="asstCount">–</span> 个插件</div>
         </div>
       </div>
-      <div class="assistant-actions">
-        <button class="icon-btn" id="assistantClear" title="清空对话" aria-label="清空对话">
-          <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg>
-        </button>
-        <button class="icon-btn" id="assistantClose" title="关闭" aria-label="关闭助手">
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
-        </button>
+      <button class="icon-btn" id="assistantClose" title="关闭" aria-label="关闭助手">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="assistant-body" id="assistantBody">
+      <div class="msg msg-bot">
+        <div class="bubble">你好！我是插件导购助手 🐋<br/>告诉我你想做的事，我帮你找到最合适的 DSH 插件。<br/><br/>试试问我：<br/>「有没有能看图/OCR 的插件？」<br/>「推荐几个多 Agent 协作的」<br/>「侧边栏最好用的是哪个？」</div>
       </div>
     </div>
-    <div class="assistant-body" id="assistantBody"></div>
     <div class="assistant-suggests" id="assistantSuggests">
       <button class="sugg-chip">推荐高星插件</button>
-      <button class="sugg-chip">有哪些分类</button>
-      <button class="sugg-chip">找能看图的插件</button>
-      <button class="sugg-chip">多 Agent 协作</button>
-      <button class="sugg-chip">怎么安装插件</button>
-      <button class="sugg-chip">一共有多少插件</button>
+      <button class="sugg-chip">怎么安装插件？</button>
+      <button class="sugg-chip">有视觉/OCR 插件吗</button>
+      <button class="sugg-chip">多 Agent 团队协作</button>
     </div>
     <div class="assistant-input">
       <textarea id="assistantInput" rows="1" placeholder="描述你的需求…" autocomplete="off"></textarea>

@@ -270,7 +270,6 @@ code, kbd, .code-block { font-family: var(--font-mono); }
 }
 .assistant-panel.open { transform: none; opacity: 1; pointer-events: auto; }
 .assistant-head { display: flex; align-items: center; justify-content: space-between; padding: 16px 18px; border-bottom: 1px solid var(--border); }
-.assistant-actions { display: flex; align-items: center; gap: 8px; }
 .assistant-title { display: flex; align-items: center; gap: 11px; }
 .assistant-avatar { width: 38px; height: 38px; border-radius: 11px; background: var(--grad); color: #fff; display: grid; place-items: center; }
 .assistant-name { font-weight: 700; font-size: 15px; }
@@ -279,21 +278,13 @@ code, kbd, .code-block { font-family: var(--font-mono); }
 .msg { display: flex; }
 .msg-bot { justify-content: flex-start; }
 .msg-user { justify-content: flex-end; }
-.bubble { max-width: 86%; padding: 11px 15px; border-radius: 16px; font-size: 13.5px; line-height: 1.6; word-break: break-word; }
+.bubble { max-width: 82%; padding: 11px 15px; border-radius: 16px; font-size: 13.5px; line-height: 1.6; white-space: pre-wrap; word-break: break-word; }
 .msg-bot .bubble { background: var(--surface); border: 1px solid var(--border); border-bottom-left-radius: 5px; }
 .msg-user .bubble { background: var(--grad); color: #fff; border-bottom-right-radius: 5px; }
-.bubble b { color: var(--accent-2); font-weight: 700; }
-.bubble code { font-family: var(--font-mono); font-size: 12px; color: var(--accent-2); background: var(--bg); padding: 1px 6px; border-radius: 5px; border: 1px solid var(--border); }
-.bubble .rec { display: flex; align-items: center; gap: 10px; width: 100%; margin-top: 8px; padding: 9px 11px; border-radius: 12px; background: var(--bg); border: 1px solid var(--border); color: var(--text); cursor: pointer; transition: .15s; text-align: left; font-family: var(--font-sans); font-size: 13px; }
-.bubble .rec:hover { border-color: var(--accent); background: var(--surface-hover); transform: translateX(2px); }
-.rec-avatar { width: 34px; height: 34px; border-radius: 9px; overflow: hidden; flex-shrink: 0; border: 1px solid var(--border); background: var(--bg-elev); }
-.rec-avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.rec-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
-.rec-name { font-weight: 700; color: var(--accent-2); font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.rec-desc { font-size: 11.5px; color: var(--text-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.rec-tags { display: flex; gap: 8px; font-size: 10.5px; color: var(--text-faint); }
-.rec-tags i { font-style: normal; }
-.rec-side { font-size: 12px; color: var(--star); font-weight: 700; flex-shrink: 0; }
+.bubble .rec { display: block; margin-top: 10px; padding: 9px 12px; border-radius: 10px; background: var(--bg); border: 1px solid var(--border); color: var(--text); cursor: pointer; transition: .15s; text-align: left; font-family: var(--font-sans); font-size: 13px; }
+.bubble .rec:hover { border-color: var(--accent); background: var(--surface-hover); }
+.bubble .rec b { color: var(--accent-2); }
+.bubble .rec .rec-stars { float: right; color: var(--star); font-weight: 700; }
 .typing { display: inline-flex; gap: 4px; padding: 6px 2px; }
 .typing span { width: 7px; height: 7px; border-radius: 50%; background: var(--text-faint); animation: blink 1.2s infinite; }
 .typing span:nth-child(2) { animation-delay: .2s; }
@@ -320,43 +311,6 @@ code, kbd, .code-block { font-family: var(--font-mono); }
 .empty { grid-column: 1 / -1; text-align: center; padding: 70px 20px; color: var(--text-faint); }
 .empty .big { font-size: 48px; margin-bottom: 12px; }
 
-/* ===== 一键安装区 ===== */
-.install-hero { display: grid; grid-template-columns: 1.1fr 1fr; gap: 20px; }
-.install-hero-main { padding: 28px; border-radius: 18px; background: var(--grad-soft); border: 1px solid var(--border-strong); }
-.install-hero-main h3 { font-family: var(--font-display); font-size: 22px; margin-bottom: 10px; }
-.install-hero-main p { font-size: 14px; color: var(--text-dim); line-height: 1.7; margin-bottom: 16px; }
-.install-meta { display: flex; flex-direction: column; gap: 8px; margin-bottom: 20px; }
-.install-meta span { font-size: 13px; color: var(--text-dim); display: flex; align-items: center; gap: 8px; }
-.install-btn { display: inline-flex; flex: none; padding: 11px 22px; }
-.install-cmds { padding: 24px; border-radius: 18px; background: var(--surface); border: 1px solid var(--border); display: flex; flex-direction: column; gap: 14px; }
-.install-tab { display: flex; gap: 6px; background: var(--bg-elev); border: 1px solid var(--border); border-radius: 10px; padding: 3px; }
-.os-tab { flex: 1; font-size: 13px; font-weight: 600; padding: 8px 12px; border-radius: 8px; color: var(--text-dim); transition: .16s; }
-.os-tab:hover { color: var(--text); }
-.os-tab.active { background: var(--grad); color: #fff; }
-.install-code { position: relative; display: flex; align-items: center; gap: 10px; background: #0d1322; border: 1px solid var(--border); border-radius: 12px; padding: 13px 14px; }
-[data-theme="light"] .install-code { background: #141832; }
-.install-code.hidden { display: none; }
-.install-code-text { flex: 1; font-family: var(--font-mono); font-size: 13px; color: #e8ecf6; overflow-x: auto; white-space: nowrap; }
-.install-code-text .code-prompt { color: var(--accent-2); margin-right: 8px; user-select: none; }
-.install-note { font-size: 12px; color: var(--text-faint); line-height: 1.6; }
-.install-note code { font-size: 11.5px; color: var(--accent-2); background: var(--surface); padding: 1px 6px; border-radius: 5px; }
-
-/* 复制按钮 */
-.copy-btn { flex-shrink: 0; font-size: 12.5px; font-weight: 600; padding: 7px 14px; border-radius: 9px; border: 1px solid var(--border-strong); background: var(--surface); color: var(--text-dim); transition: .16s; }
-.copy-btn:hover { color: var(--text); border-color: var(--accent); background: var(--surface-hover); }
-.copy-btn:active { transform: scale(.96); }
-
-/* ===== 弹窗安装区 ===== */
-.install-box { margin: 16px 0 6px; padding: 16px; border-radius: 14px; background: var(--surface); border: 1px solid var(--border); }
-.install-box-head { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
-.type-badge { font-size: 12px; font-weight: 700; color: #fff; padding: 3px 11px; border-radius: 999px; letter-spacing: .02em; }
-.install-type-hint { font-size: 12px; color: var(--text-faint); }
-.install-cmd-row { display: flex; align-items: center; gap: 10px; }
-.install-cmd { flex: 1; font-size: 13px; color: #e8ecf6; background: #0d1322; border: 1px solid var(--border); border-radius: 10px; padding: 11px 13px; overflow-x: auto; white-space: nowrap; }
-[data-theme="light"] .install-cmd { background: #141832; }
-.install-tip { font-size: 12px; color: var(--text-faint); margin-top: 11px; line-height: 1.6; }
-.install-link { color: var(--accent-2); font-weight: 600; }
-
 /* ===== 响应式 ===== */
 @media (max-width: 760px) {
   .nav-links { display: none; }
@@ -367,7 +321,4 @@ code, kbd, .code-block { font-family: var(--font-mono); }
   .hero { padding-top: 56px; }
   .assistant-panel { right: 16px; bottom: 88px; }
   .assistant-fab { right: 18px; bottom: 18px; }
-  .install-hero { grid-template-columns: 1fr; }
-  .install-cmd-row { flex-direction: column; align-items: stretch; }
-  .install-cmd { white-space: normal; word-break: break-all; }
 }
