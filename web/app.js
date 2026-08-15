@@ -46,6 +46,34 @@
   const catMap = {};
   const catOf = (id) => catMap[id] || null;
 
+  // 插件安装类型（基于仓库元数据推测，与 DSH 插件市场的四类识别一致）
+  const TYPE_INFO = {
+    skill: { label: 'Skill', color: '#ec4899', hint: '含 SKILL.md，安装到 ~/.dsh/skills/' },
+    preset: { label: 'Agent 预设', color: '#8b5cf6', hint: '含 preset.yml，安装到 ~/.dsh/.agent-presets/' },
+    script: { label: '安装脚本', color: '#f59e0b', hint: '含 install.sh / install.ps1，运行脚本安装' },
+    plugin: { label: 'Cordis 插件', color: '#22c55e', hint: 'npm 包，注册进 cordis.patch.yml' },
+  };
+  function detectType(p) {
+    const h = ((p.name || '') + ' ' + (p.description || '')).toLowerCase();
+    if (/skill/.test(h)) return 'skill';
+    if (/preset/.test(h)) return 'preset';
+    if (/installer|install\.sh|install\.ps1|setup\.sh/.test(h)) return 'script';
+    return 'plugin';
+  }
+  function fallbackCopy(text, cb) {
+    const ta = document.createElement('textarea');
+    ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); cb(); } catch (e) { toast('复制失败，请手动复制'); }
+    document.body.removeChild(ta);
+  }
+  function copyText(text) {
+    const done = () => toast('✅ 已复制到剪贴板');
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(done).catch(() => fallbackCopy(text, done));
+    } else { fallbackCopy(text, done); }
+  }
+
   // ---------- 数据加载 ----------
   async function loadData() {
     const badge = $('#heroBadgeText');
@@ -236,6 +264,8 @@
     const cat = catOf(p.category);
     const topics = (p.topics || []).slice(0, 8).map((t) => `<span class="topic-tag">#${esc(t)}</span>`).join('');
     const install = p.homepage || p.html_url;
+    const typeInfo = TYPE_INFO[detectType(p)];
+    const installCmd = `dsh plugin --profile web add github:${p.owner}/${p.name}`;
     $('#modal').innerHTML = `
       <div class="modal-head">
         <div class="modal-avatar"><img src="${esc(p.avatar)}" alt="" /></div>
@@ -253,7 +283,17 @@
         <div class="modal-stat"><div class="num">${timeAgo(p.updated_at)}</div><div class="lbl">更新</div></div>
       </div>
       ${topics ? `<div class="modal-topics">${topics}</div>` : ''}
-      <div class="code-block install-cmd"><span class="code-prompt">$</span> dsh plugin add ${esc(p.name)}</div>
+      <div class="install-box">
+        <div class="install-box-head">
+          <span class="type-badge" style="background:${typeInfo.color}">${esc(typeInfo.label)}</span>
+          <span class="install-type-hint">${esc(typeInfo.hint)}</span>
+        </div>
+        <div class="install-cmd-row">
+          <code class="install-cmd">${esc(installCmd)}</code>
+          <button class="copy-btn" data-copy="${esc(installCmd)}">复制</button>
+        </div>
+        <div class="install-tip">💡 更省事：装好「<a href="#install" class="install-link">插件市场</a>」后，可在网页里一键安装，无需命令行。类型为推测结果，以仓库 README 为准。</div>
+      </div>
       <div class="modal-actions">
         <a class="btn btn-primary" href="${esc(p.html_url)}" target="_blank" rel="noopener">GitHub 主页 ↗</a>
         ${install ? `<a class="btn btn-ghost" href="${esc(install)}" target="_blank" rel="noopener">项目主页</a>` : ''}
@@ -330,29 +370,311 @@
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); $('#heroSearch').focus(); }
     });
 
+    // 复制按钮 + 系统切换（事件委托）
+    document.addEventListener('click', (e) => {
+      const copyBtn = e.target.closest('.copy-btn');
+      if (copyBtn) { copyText(copyBtn.dataset.copy || ''); return; }
+      const osTab = e.target.closest('.os-tab');
+      if (osTab) {
+        $$('.os-tab').forEach((x) => x.classList.remove('active'));
+        osTab.classList.add('active');
+        const os = osTab.dataset.os;
+        $$('.install-code').forEach((x) => x.classList.toggle('hidden', x.dataset.osCode !== os));
+      }
+    });
+
     // 助手
     bindAssistant();
   }
 
-  // ---------- 智能问答助手 ----------
+  // =====================================================
+  // 智能问答助手（Agent 应用）
+  // 纯前端导购 Agent：意图识别 + 约束抽取 + 相关性评分 + 多轮上下文
+  // =====================================================
   function bindAssistant() {
     const fab = $('#assistantFab');
     const panel = $('#assistantPanel');
     const close = $('#assistantClose');
+    const clearBtn = $('#assistantClear');
     const input = $('#assistantInput');
     const send = $('#assistantSend');
     const body = $('#assistantBody');
     const suggests = $('#assistantSuggests');
 
+    // 会话上下文（多轮对话）
+    const ctx = {
+      lastIntent: null,
+      lastQuery: '',
+      lastPool: [],  // 最近一次推荐的全量候选
+      lastShown: 0,  // 已展示数量
+      history: [],   // [{ role, text?, html? }]
+    };
+
+    const HKEY = 'dsh_ph_chat';
+    const saveHistory = () => { try { localStorage.setItem(HKEY, JSON.stringify(ctx.history)); } catch (e) {} };
+    const loadHistory = () => { try { const h = JSON.parse(localStorage.getItem(HKEY) || '[]'); if (Array.isArray(h)) ctx.history = h; } catch (e) {} };
+
+    // ---------- 轻量 Markdown（加粗 / 行内代码 / 换行） ----------
+    function md(s) {
+      return esc(s)
+        .replace(/\*\*(.+?)\*\*/g, '<b>$1</b>')
+        .replace(/`([^`]+)`/g, '<code>$1</code>')
+        .replace(/\n/g, '<br/>');
+    }
+
+    // ---------- 渲染 ----------
+    function welcomeHTML() {
+      return md('你好！我是 DSH 插件导购 Agent 🐋\n我已学完全部插件，可以帮你：\n\n· 🔍 **按需求找插件** — 「找能看图的」\n· 🏆 **推荐热门** — 「推荐高星插件」\n· 📂 **逛分类** — 「有哪些分类」\n· ⚖️ **对比插件** — 「对比 A 和 B」\n· 📊 **看统计** — 「一共有多少插件」\n· 📦 **安装教程** — 「怎么安装」\n\n直接告诉我你想做什么吧～');
+    }
+
+    const scroll = () => { body.scrollTop = body.scrollHeight; };
+
+    function addUser(q) {
+      const div = document.createElement('div');
+      div.className = 'msg msg-user';
+      div.innerHTML = `<div class="bubble">${esc(q).replace(/\n/g, '<br/>')}</div>`;
+      body.appendChild(div);
+      ctx.history.push({ role: 'user', text: q });
+      saveHistory();
+      scroll();
+    }
+
+    function typing() {
+      const div = document.createElement('div');
+      div.className = 'msg msg-bot';
+      div.innerHTML = `<div class="bubble"><span class="typing"><span></span><span></span><span></span></span></div>`;
+      body.appendChild(div);
+      scroll();
+      return div;
+    }
+
+    const bindRec = (el) => el.addEventListener('click', () => openModal(el.dataset.full));
+
+    function recCards(list) {
+      return (list || []).slice(0, 4).map((p) => {
+        const cat = catOf(p.category);
+        return `<button class="rec" data-full="${esc(p.full_name)}">
+          <span class="rec-avatar"><img src="${esc(p.avatar)}" alt="" loading="lazy" onerror="this.style.display='none'" /></span>
+          <span class="rec-main">
+            <span class="rec-name">${esc(p.name)}</span>
+            <span class="rec-desc">${esc((p.description || '').slice(0, 60))}</span>
+            <span class="rec-tags">${cat ? `<i style="color:${cat.color}">${cat.emoji} ${esc(cat.label)}</i>` : ''}${p.language ? `<i>${esc(p.language)}</i>` : ''}</span>
+          </span>
+          <span class="rec-side">⭐ ${fmt(p.stars)}</span>
+        </button>`;
+      }).join('');
+    }
+
+    // ---------- 约束抽取 ----------
+    function matchLanguage(ql) {
+      const map = [['javascript', 'JavaScript'], ['typescript', 'TypeScript'], ['python', 'Python'], ['golang', 'Go'], ['rust', 'Rust'], ['java', 'Java'], ['c#', 'C#'], ['c++', 'C++'], ['ruby', 'Ruby'], ['kotlin', 'Kotlin'], ['swift', 'Swift'], ['vue', 'Vue'], ['lua', 'Lua']];
+      for (const [kw, lang] of map) if (ql.includes(kw)) return lang;
+      if (/\bgo\b|go语言/.test(ql)) return 'Go';
+      return null;
+    }
+
+    function extractConstraints(ql) {
+      const c = {};
+      if (/中文|汉语|国产/.test(ql)) c.cn = true;
+      if (/高星|100星|千星|1k|星以上|star以上|知名/.test(ql)) c.hot = true;
+      if (/最近|新出|新上|活跃|刚更新|近7|近30|近七天|近一月/.test(ql)) c.recent = true;
+      if (/免费|开源|opensource|apache|mit许可|bsd|gpl/.test(ql)) c.oss = true;
+      const lang = matchLanguage(ql);
+      if (lang) c.lang = lang;
+      return c;
+    }
+
+    function applyConstraints(list, c) {
+      if (!c || !Object.keys(c).length) return list;
+      return list.filter((p) => {
+        if (c.cn && !/[一-龥]/.test(p.description || '')) return false;
+        if (c.hot && (p.stars || 0) < 100) return false;
+        if (c.recent) { const days = (Date.now() - new Date(p.pushed_at || 0).getTime()) / 86400000; if (days > 30) return false; }
+        if (c.oss) { const l = (p.license || '').toLowerCase(); if (l && !/(mit|apache|bsd|gpl|lgpl|mpl|isc|unlicense|wtfpl)/.test(l)) return false; }
+        if (c.lang && (p.language || '').toLowerCase() !== c.lang.toLowerCase()) return false;
+        return true;
+      });
+    }
+
+    // ---------- 相关性 ----------
+    function scorePlugin(p, q) {
+      const name = p.name.toLowerCase();
+      const desc = (p.description || '').toLowerCase();
+      const topics = (p.topics || []).join(' ').toLowerCase();
+      let score = 0;
+      for (const t of tokenize(q)) {
+        if (t.length < 2) continue;
+        if (name.includes(t)) score += 14;
+        else if (topics.includes(t)) score += 7;
+        else if (desc.includes(t)) score += 5;
+      }
+      const phrase = q.replace(/[\s,，。、！？!?]+/g, '').toLowerCase();
+      if (phrase.length >= 3) {
+        if (name.includes(phrase)) score += 20;
+        else if (desc.includes(phrase)) score += 8;
+      }
+      score += Math.log10((p.stars || 0) + 2);
+      return score;
+    }
+
+    function matchCategory(q) {
+      const ql = q.toLowerCase();
+      let best = null, bestScore = 0;
+      for (const [cat, words] of Object.entries(SYNONYMS)) {
+        let s = 0;
+        for (const w of words) if (ql.includes(w)) s += w.length > 2 ? 3 : 2;
+        if (s > bestScore) { bestScore = s; best = cat; }
+      }
+      return best;
+    }
+
+    function findPlugin(name) {
+      const n = name.toLowerCase();
+      return DATA.plugins.find((x) => x.name.toLowerCase() === n || x.full_name.toLowerCase() === n)
+        || DATA.plugins.find((x) => x.name.toLowerCase().includes(n))
+        || DATA.plugins.find((x) => (x.description || '').toLowerCase().includes(n));
+    }
+
+    // ---------- 意图识别 ----------
+    function understand(ql) {
+      if (/^(你好|您好|hi|hello|hey|嗨|哈喽|嗨喽|在吗)[\s!！~～。,.，]*$/.test(ql)) return 'greet';
+      if (/你能|你会|可以做什么|能做什么|帮助|help|功能|怎么用你|使用说明/.test(ql)) return 'help';
+      if (/什么是dsh|dsh是什么|deepseek harness|这个网站|这是啥|你是谁|关于/.test(ql)) return 'about';
+      if (/安装|怎么用|如何用|怎么装|入门|上手|install|quickstart|部署|启动|怎么开始|usage/.test(ql)) return 'install';
+      if (/对比|比较|vs|versus|哪个更好|区别|优缺点/.test(ql)) return 'compare';
+      if (/有哪些分类|分类|有哪些类型|几类|类别/.test(ql)) return 'categories';
+      if (/多少|几个|统计|总数|平均|哪种语言|什么语言最多|哪个最多/.test(ql)) return 'stats';
+      if (/换一批|再来|换点|还有|再推荐|别的|下一个|继续/.test(ql)) return 'more';
+      if (/排行|排行榜|最火|最热|热门|最高|top|best|哪些值得|值得装|高星|榜单|排名/.test(ql)) return 'rank';
+      return 'search';
+    }
+
+    // ---------- 意图处理器 ----------
+    const handlers = {
+      greet() { return { text: '你好呀！👋 我是 DSH 插件导购 Agent。\n\n直接告诉我想做什么，例如：\n· 「有没有能看图的插件」\n· 「推荐多 Agent 协作的」\n· 「有哪些分类」' }; },
+      help() { return { text: '我可以帮你做这些：\n\n🔍 **找插件** — 「找能做 OCR 的」\n🏆 **推荐热门** — 「推荐高星插件」\n📂 **逛分类** — 「有哪些分类」「Agent 类插件」\n⚖️ **对比** — 「对比 A 和 B」\n📊 **统计** — 「一共有多少插件」\n📦 **安装** — 「怎么安装插件」\n\n也可以直接说插件名，我给你详情。' }; },
+      about() { return { text: '🐋 **DSH Plugin Hub** 是 DeepSeek Harness（DSH）的开源插件导航站。\n\n实时同步 GitHub `dsh-plugin` 生态，按 Stars 排行、智能分类，助你 30 秒定位所需插件。\n\n目前已收录 **' + DATA.fetched + '** 个插件、' + DATA.categories.length + ' 个分类。' }; },
+      install() { return { text: 'DSH 插件安装有两种方式：\n\n1️⃣【最省事·推荐】装「插件市场」：\n   见页面「🚀 一键安装」区，Windows 用 `irm ... | iex`、Mac 用 `curl ... | bash`，装好后所有插件在网页里点「安装」即可。\n\n2️⃣【命令行】直接装：\n   `dsh plugin --profile web add github:owner/repo`\n\n⚠️ 安装后重启 DSH 再刷新页面。点开任意插件卡片可一键复制对应安装命令。' }; },
+      rank(q, c) {
+        let list = DATA.plugins.slice().sort((a, b) => (b.stars || 0) - (a.stars || 0));
+        list = applyConstraints(list, c);
+        const pool = list.slice(0, 12);
+        const tag = c.cn ? '（中文友好）' : c.recent ? '（近 30 天活跃）' : c.lang ? '（' + c.lang + '）' : '';
+        return { text: `当前 Stars 最高的 ${pool.length} 个插件${tag}，社区热度首选 👇`, recs: pool.slice(0, 4), pool };
+      },
+      categories() {
+        const lines = DATA.categories.map((c) => `${c.emoji} **${c.label}**（${DATA.plugins.filter((p) => p.category === c.id).length}）`);
+        return { text: `目前共有 **${DATA.categories.length}** 个分类：\n\n${lines.join('\n')}\n\n想看某一类，直接说分类名即可，比如「${DATA.categories[1].label}」。` };
+      },
+      stats() {
+        const sum = DATA.plugins.reduce((a, p) => a + (p.stars || 0), 0);
+        const langs = {};
+        DATA.plugins.forEach((p) => { if (p.language) langs[p.language] = (langs[p.language] || 0) + 1; });
+        const topLang = Object.entries(langs).sort((a, b) => b[1] - a[1])[0];
+        const cn = DATA.plugins.filter((p) => /[一-龥]/.test(p.description || '')).length;
+        const active = DATA.plugins.filter((p) => (Date.now() - new Date(p.pushed_at || 0).getTime()) / 86400000 <= 30).length;
+        return { text: `📊 数据一览：\n\n· 收录插件：**${DATA.fetched}** 个\n· 累计 Stars：**${fmt(sum)}**\n· 中文友好：**${cn}** 个\n· 近 30 天活跃：**${active}** 个\n· 主力语言：**${topLang ? topLang[0] : '—'}**（${topLang ? topLang[1] : 0} 个）\n\n数据更新于 ${timeAgo(DATA.generated_at)}。` };
+      },
+      compare(q) {
+        const parts = q.split(/对比|比较|和|与|vs|versus|、/i).map((s) => s.trim()).filter((s) => s.length >= 2);
+        const found = parts.map(findPlugin).filter(Boolean).slice(0, 2);
+        if (found.length < 2) return { text: '对比需要两个插件名哦～ 例如：「对比 open-design 和 XXX」\n\n不确定名字的话，可以先问「推荐几个 UI 插件」，再让我对比其中两个。' };
+        const [a, b] = found;
+        const winner = (a.stars || 0) >= (b.stars || 0) ? a : b;
+        return {
+          text: `⚖️ **对比结果**\n\n**${a.name}** vs **${b.name}**\n\n· ⭐ Stars：${fmt(a.stars)} / ${fmt(b.stars)}\n· 🍴 Forks：${fmt(a.forks)} / ${fmt(b.forks)}\n· 💻 语言：${a.language || '—'} / ${b.language || '—'}\n· 📜 协议：${a.license || '—'} / ${b.license || '—'}\n· 🕐 更新：${timeAgo(a.pushed_at)} / ${timeAgo(b.pushed_at)}\n\n🏆 综合热度「**${winner.name}**」更高（${fmt(winner.stars)} ⭐）`,
+          recs: [a, b]
+        };
+      },
+      more(q, c) {
+        // 无上文时退化为普通搜索（兼容「还有没有能看图的」这类首次提问）
+        if (!ctx.lastPool || !ctx.lastPool.length) return handlers.search(q, c);
+        const hasC = !!(c.cn || c.hot || c.recent || c.oss || c.lang);
+        if (hasC) {
+          const filtered = applyConstraints(ctx.lastPool, c);
+          if (!filtered.length) return { text: '没有同时满足这些条件的插件，放宽条件再试试？' };
+          return { text: '按你的新要求筛选后，为你找到 👇', recs: filtered.slice(0, 4), pool: filtered };
+        }
+        const next = ctx.lastPool.slice(ctx.lastShown, ctx.lastShown + 4);
+        if (!next.length) return { text: '以上就是全部啦，换个需求试试？' };
+        return { text: '再给你推荐几个 👇', recs: next, pool: ctx.lastPool, _more: true };
+      },
+      search(q, c) {
+        const key = q.trim().toLowerCase();
+        // 1) 精确名称命中
+        const exact = DATA.plugins.find((x) => x.name.toLowerCase() === key || x.full_name.toLowerCase() === key);
+        if (exact) return { text: '我找到了这个插件：', recs: [exact], pool: [exact] };
+        // 2) 名称包含
+        const nameHit = key.length >= 4
+          ? DATA.plugins.filter((x) => x.name.toLowerCase().includes(key)).sort((a, b) => (b.stars || 0) - (a.stars || 0))
+          : [];
+        if (nameHit.length) { const pool = nameHit.slice(0, 12); return { text: `找到 ${nameHit.length} 个名称匹配的插件：`, recs: pool.slice(0, 4), pool }; }
+        // 3) 分类 + 关键词评分
+        const cat = matchCategory(q);
+        const list = applyConstraints(DATA.plugins.slice(), c);
+        const scored = list.map((pl) => ({ pl, score: scorePlugin(pl, q) + (cat && pl.category === cat ? 9 : 0) }))
+          .filter((x) => x.score > 3)
+          .sort((a, b) => b.score - a.score)
+          .slice(0, 12);
+        if (scored.length) {
+          const catObj = cat ? catOf(cat) : null;
+          const hint = catObj ? `💡 命中「${catObj.emoji} ${catObj.label}」分类，为你找到相关度最高的插件：` : '根据你的描述，为你找到这些插件：';
+          return { text: hint, recs: scored.slice(0, 4).map((x) => x.pl), pool: scored.map((x) => x.pl) };
+        }
+        // 4) 兜底：热门
+        const top = DATA.plugins.slice().sort((a, b) => (b.stars || 0) - (a.stars || 0)).slice(0, 12);
+        return { text: '没找到特别匹配的插件 🤔\n\n先看看这几个社区热门 👇 也可以换个更具体的关键词（如「侧边栏」「OCR」「多 Agent」）', recs: top.slice(0, 4), pool: top };
+      }
+    };
+
+    function answer(q) {
+      if (!DATA) return { text: '数据还在加载中，请稍等片刻～' };
+      const ql = q.toLowerCase();
+      const intent = understand(ql);
+      const c = extractConstraints(ql);
+      const r = handlers[intent](q, c);
+      ctx.lastIntent = intent;
+      ctx.lastQuery = q;
+      if (r.recs && r.recs.length) {
+        if (r._more) ctx.lastShown = (ctx.lastShown || 0) + r.recs.length;
+        else { ctx.lastPool = r.pool || r.recs; ctx.lastShown = r.recs.length; }
+      }
+      return r;
+    }
+
+    function ask(query) {
+      open();
+      addUser(query);
+      const t = typing();
+      setTimeout(() => {
+        const r = answer(query);
+        let html = md(r.text || '');
+        if (r.recs && r.recs.length) html += recCards(r.recs);
+        t.querySelector('.bubble').innerHTML = html;
+        t.querySelectorAll('.rec').forEach(bindRec);
+        ctx.history.push({ role: 'bot', html });
+        saveHistory();
+        scroll();
+      }, 420 + Math.random() * 300);
+    }
+
+    // ---------- 事件 ----------
     const open = () => panel.classList.add('open');
     const toggle = () => panel.classList.toggle('open');
     fab.addEventListener('click', toggle);
     close.addEventListener('click', () => panel.classList.remove('open'));
+    clearBtn.addEventListener('click', () => {
+      ctx.history = [];
+      ctx.lastPool = []; ctx.lastShown = 0;
+      saveHistory();
+      body.innerHTML = welcomeHTML();
+      scroll();
+    });
 
     suggests.addEventListener('click', (e) => {
       const chip = e.target.closest('.sugg-chip');
       if (!chip) return;
-      ask(chip.textContent);
+      ask(chip.dataset.q || chip.textContent.trim());
     });
 
     const doSend = () => {
@@ -368,45 +690,24 @@
     });
     input.addEventListener('input', () => { input.style.height = 'auto'; input.style.height = Math.min(input.scrollHeight, 110) + 'px'; });
 
-    function addMsg(text, who) {
-      const div = document.createElement('div');
-      div.className = 'msg msg-' + who;
-      div.innerHTML = `<div class="bubble">${text}</div>`;
-      body.appendChild(div);
-      body.scrollTop = body.scrollHeight;
-      return div;
+    // ---------- 初始化 ----------
+    loadHistory();
+    if (ctx.history.length) {
+      body.innerHTML = '';
+      ctx.history.forEach((m) => {
+        const div = document.createElement('div');
+        div.className = 'msg msg-' + (m.role === 'user' ? 'user' : 'bot');
+        div.innerHTML = `<div class="bubble">${m.role === 'user' ? esc(m.text).replace(/\n/g, '<br/>') : (m.html || '')}</div>`;
+        body.appendChild(div);
+      });
+      body.querySelectorAll('.rec').forEach(bindRec);
+    } else {
+      body.innerHTML = welcomeHTML();
     }
-
-    function typing() {
-      const div = document.createElement('div');
-      div.className = 'msg msg-bot';
-      div.innerHTML = `<div class="bubble"><span class="typing"><span></span><span></span><span></span></span></div>`;
-      body.appendChild(div);
-      body.scrollTop = body.scrollHeight;
-      return div;
-    }
-
-    function ask(query) {
-      open();
-      addMsg(esc(query), 'user');
-      const t = typing();
-      setTimeout(() => {
-        const { text, recs } = answer(query);
-        let html = esc(text);
-        if (recs && recs.length) {
-          html += recs.slice(0, 4).map((p) => {
-            const cat = catOf(p.category);
-            return `<button class="rec" data-full="${esc(p.full_name)}"><b>${esc(p.name)}</b><span class="rec-stars">⭐ ${fmt(p.stars)}</span><br/><span style="color:var(--text-dim);font-size:12px">${esc((p.description || '').slice(0, 46))}</span> <span style="color:${cat ? cat.color : '#888'};font-size:11px">· ${cat ? esc(cat.label) : '其他'}</span></button>`;
-          }).join('');
-        }
-        t.querySelector('.bubble').innerHTML = html;
-        t.querySelectorAll('.rec').forEach((el) => el.addEventListener('click', () => openModal(el.dataset.full)));
-        body.scrollTop = body.scrollHeight;
-      }, 450 + Math.random() * 350);
-    }
+    scroll();
   }
 
-  // 助手应答引擎（关键词 + 同义词 → 分类/功能匹配）
+  // 分类同义词表（意图关键词 → 分类 id，供 matchCategory 使用）
   const SYNONYMS = {
     'ui': ['界面', '侧边栏', '皮肤', '主题', '面板', '看板', '桌面', '终端界面', 'sidebar', 'ui', 'theme', 'skin', 'panel', 'web'],
     'vision': ['看图', '视觉', '图像', '图片', '截图', 'ocr', '识别', '多模态', 'vision', 'image', 'picture', 'photo', 'screenshot'],
@@ -422,70 +723,6 @@
 
   function tokenize(q) {
     return q.toLowerCase().split(/[\s,，。、！？!?]+/).filter(Boolean);
-  }
-
-  function answer(query) {
-    if (!DATA) return { text: '数据还在加载中，请稍等片刻～', recs: [] };
-    const q = query.trim();
-    const ql = q.toLowerCase();
-    const toks = tokenize(q);
-
-    // 安装/使用帮助
-    if (/怎么装|如何安装|怎么用|如何使用|install|安装|入门|上手|使用教程|怎么开始|quickstart/.test(ql)) {
-      return {
-        text: 'DSH 插件的安装很简单，三步搞定：\n\n1️⃣ 启动 Harness：`npx @deepseek-ai/dsh web`\n2️⃣ 命令行安装插件：`dsh plugin add <插件名>`\n3️⃣ 重启或在设置中启用即可\n\n你也可以在下方卡片点开任意插件，查看它的 GitHub 主页和 README 获取具体安装命令。',
-        recs: []
-      };
-    }
-
-    // 排行榜/热门
-    if (/最火|最热|热门|最高|排行榜|top|best|推荐|popular|trend|哪些值得|值得装/.test(ql)) {
-      const top = DATA.plugins.slice().sort((a, b) => (b.stars || 0) - (a.stars || 0)).slice(0, 5);
-      return { text: `这是当前 GitHub Stars 最高的 ${top.length} 个插件，社区热度最高的选择 👇`, recs: top };
-    }
-
-    // 精确插件名匹配
-    const exact = DATA.plugins.filter((p) => {
-      const name = p.name.toLowerCase();
-      return ql.length >= 3 && (name === ql || name.includes(ql.replace(/\s+/g, '')) || ql.includes(name));
-    }).sort((a, b) => (b.stars || 0) - (a.stars || 0));
-    if (exact.length && ql.length >= 3) {
-      return { text: `我找到了 ${exact.length} 个名称匹配的插件：`, recs: exact.slice(0, 5) };
-    }
-
-    // 类别/功能匹配打分
-    const catHits = {};
-    let matchedCat = null;
-    for (const [cat, words] of Object.entries(SYNONYMS)) {
-      let s = 0;
-      for (const w of words) {
-        if (ql.includes(w)) s += w.length > 2 ? 3 : 2;
-      }
-      if (s > 0) catHits[cat] = s;
-    }
-    matchedCat = Object.keys(catHits).sort((a, b) => catHits[b] - catHits[a])[0] || null;
-
-    const scored = DATA.plugins.map((p) => {
-      const hay = (p.name + ' ' + p.full_name + ' ' + p.description + ' ' + (p.topics || []).join(' ')).toLowerCase();
-      let score = 0;
-      for (const t of toks) { if (t.length >= 2 && hay.includes(t)) score += 3; }
-      if (matchedCat && p.category === matchedCat) score += 8;
-      // 名称命中加权
-      if (p.name.toLowerCase().includes(ql.replace(/\s+/g, '')) || ql.includes(p.name.toLowerCase())) score += 12;
-      score += Math.log10((p.stars || 0) + 2); // 星标微调
-      return { p, score };
-    }).filter((x) => x.score > 3).sort((a, b) => b.score - a.score).slice(0, 5);
-
-    if (scored.length) {
-      const cat = matchedCat ? catOf(matchedCat) : null;
-      const hint = cat ? `\n\n💡 命中分类「${cat.emoji} ${cat.label}」，以下为相关度最高的插件：` : '以下是根据你的描述匹配到的插件：';
-      return { text: '根据你的需求，我找到了这些插件' + hint, recs: scored.map((x) => x.p) };
-    }
-
-    return {
-      text: '暂时没找到精确匹配的插件 🤔\n\n你可以试试：\n· 换一个更具体的关键词（如「侧边栏」「OCR」「多 Agent」）\n· 直接告诉我插件的英文名\n· 问「推荐高星插件」看热门榜单',
-      recs: []
-    };
   }
 
   // ---------- toast ----------
