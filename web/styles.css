@@ -233,7 +233,14 @@ code, kbd, .code-block { font-family: var(--font-mono); }
 .modal { width: 100%; max-width: 560px; max-height: 86vh; overflow-y: auto; background: var(--bg-elev); border: 1px solid var(--border-strong); border-radius: 20px; padding: 30px; animation: modalIn .3s ease; box-shadow: var(--shadow); }
 @keyframes modalIn { from { opacity: 0; transform: scale(.96) translateY(10px) } to { opacity: 1; transform: none } }
 .modal-close { position: absolute; }
-.modal-head { display: flex; gap: 16px; align-items: flex-start; margin-bottom: 16px; }
+.modal-head { display: flex; gap: 16px; align-items: flex-start; margin-bottom: 16px; justify-content: space-between; }
+.modal-head-left { display: flex; gap: 16px; align-items: flex-start; min-width: 0; flex: 1; }
+.translate-btn { flex-shrink: 0; font-size: 13px; font-weight: 600; padding: 8px 14px; border-radius: 10px; border: 1px solid var(--border-strong); background: var(--surface); color: var(--text-dim); transition: .18s; align-self: flex-start; display: inline-flex; align-items: center; gap: 5px; }
+.translate-btn:hover { color: var(--text); border-color: var(--accent); background: var(--surface-hover); }
+.translate-btn:disabled { opacity: .6; cursor: default; }
+.modal-translated { margin-top: -8px; margin-bottom: 18px; padding: 14px 16px; border-radius: 12px; background: var(--grad-soft); border: 1px solid var(--border); }
+.translated-label { font-size: 12px; font-weight: 600; color: var(--accent-2); margin-bottom: 8px; letter-spacing: .02em; }
+.translated-text { font-size: 14.5px; color: var(--text); line-height: 1.75; }
 .modal-avatar { width: 56px; height: 56px; border-radius: 14px; overflow: hidden; border: 1px solid var(--border); flex-shrink: 0; }
 .modal-avatar img { width: 100%; height: 100%; object-fit: cover; }
 .modal-title { font-size: 20px; font-weight: 700; }

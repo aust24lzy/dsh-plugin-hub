@@ -46,6 +46,26 @@
   const catMap = {};
   const catOf = (id) => catMap[id] || null;
 
+  // 判断描述是否为英文（用于显示翻译按钮）
+  function isEnglish(text) {
+    if (!text || !text.trim()) return false;
+    const ch = (text.match(/[\u4e00-\u9fff]/g) || []).length;
+    return ch / text.length < 0.1 && /[a-zA-Z]/.test(text);
+  }
+  // MyMemory 免费翻译 API（无需 key，CORS 友好）
+  async function translateText(text) {
+    if (!text) return text;
+    if (text.length > 480) text = text.slice(0, 480) + '...';
+    try {
+      const res = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=en|zh-CN`);
+      const data = await res.json();
+      return data.responseData?.translatedText || text;
+    } catch (e) {
+      console.warn('translate failed:', e);
+      return text;
+    }
+  }
+
   // ---------- 数据加载 ----------
   async function loadData() {
     const badge = $('#heroBadgeText');
@@ -236,15 +256,21 @@
     const cat = catOf(p.category);
     const topics = (p.topics || []).slice(0, 8).map((t) => `<span class="topic-tag">#${esc(t)}</span>`).join('');
     const install = p.homepage || p.html_url;
+    const showTranslate = isEnglish(p.description);
+    const installCmd = `dsh plugin --profile web add github:${p.owner}/${p.name}`;
     $('#modal').innerHTML = `
       <div class="modal-head">
-        <div class="modal-avatar"><img src="${esc(p.avatar)}" alt="" /></div>
-        <div>
-          <div class="modal-title">${esc(p.name)}</div>
-          <div class="modal-owner">${esc(p.full_name)} · ${cat ? esc(cat.label) : '其他'}</div>
+        <div class="modal-head-left">
+          <div class="modal-avatar"><img src="${esc(p.avatar)}" alt="" /></div>
+          <div>
+            <div class="modal-title">${esc(p.name)}</div>
+            <div class="modal-owner">${esc(p.full_name)} · ${cat ? esc(cat.label) : '其他'}</div>
+          </div>
         </div>
+        ${showTranslate ? '<button class="translate-btn" id="translateBtn" title="将英文描述翻译为中文">🌐 翻译</button>' : ''}
       </div>
-      <div class="modal-desc">${esc(p.description) || '暂无描述'}</div>
+      <div class="modal-desc" id="modalDesc">${esc(p.description) || '暂无描述'}</div>
+      <div class="modal-translated" id="modalTranslated" style="display:none"></div>
       <div class="modal-stats">
         <div class="modal-stat"><div class="num" style="color:var(--star)">⭐ ${fmt(p.stars)}</div><div class="lbl">Stars</div></div>
         <div class="modal-stat"><div class="num">${fmt(p.forks)}</div><div class="lbl">Forks</div></div>
@@ -253,12 +279,38 @@
         <div class="modal-stat"><div class="num">${timeAgo(p.updated_at)}</div><div class="lbl">更新</div></div>
       </div>
       ${topics ? `<div class="modal-topics">${topics}</div>` : ''}
-      <div class="code-block install-cmd"><span class="code-prompt">$</span> dsh plugin add ${esc(p.name)}</div>
+      <div class="code-block install-cmd"><span class="code-prompt">$</span> ${esc(installCmd)}</div>
       <div class="modal-actions">
         <a class="btn btn-primary" href="${esc(p.html_url)}" target="_blank" rel="noopener">GitHub 主页 ↗</a>
         ${install ? `<a class="btn btn-ghost" href="${esc(install)}" target="_blank" rel="noopener">项目主页</a>` : ''}
       </div>`;
     $('#modalOverlay').classList.add('open');
+
+    // 翻译按钮
+    const tBtn = $('#translateBtn');
+    if (tBtn) {
+      tBtn.addEventListener('click', async () => {
+        const target = $('#modalTranslated');
+        if (target.style.display !== 'none') {
+          target.style.display = 'none';
+          tBtn.textContent = '🌐 翻译';
+          return;
+        }
+        const original = tBtn.textContent;
+        tBtn.textContent = '⏳ 翻译中...';
+        tBtn.disabled = true;
+        const translated = await translateText(p.description);
+        if (translated && translated !== p.description) {
+          target.innerHTML = `<div class="translated-label">🌐 中文翻译</div><div class="translated-text">${esc(translated)}</div>`;
+          target.style.display = 'block';
+          tBtn.textContent = '🌐 隐藏';
+        } else {
+          tBtn.textContent = '😅 翻译失败';
+          setTimeout(() => (tBtn.textContent = original), 1800);
+        }
+        tBtn.disabled = false;
+      });
+    }
   }
 
   // ---------- 事件绑定 ----------
