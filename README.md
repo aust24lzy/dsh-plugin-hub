@@ -4,14 +4,14 @@
 
 <p align="center">
   <a href="https://aust24lzy.github.io/dsh-plugin-hub/"><img src="https://img.shields.io/badge/在线访问-aust24lzy.github.io-6366f1?style=flat-square&logo=github" alt="在线访问"></a>
-  <a href="https://mfnx-1469339292.cos-website.ap-guangzhou.myqcloud.com/"><img src="https://img.shields.io/badge/国内访问-COS加速-00a4ff?style=flat-square&logo=tencentcloud" alt="国内访问"></a>
+  <a href="https://1d6da375127842fe97d4a7e3e98c670b.app.workbuddy.link/"><img src="https://img.shields.io/badge/国内访问-CloudStudio-00a4ff?style=flat-square" alt="国内访问"></a>
   <a href="https://github.com/aust24lzy/dsh-plugin-hub/stargazers"><img src="https://img.shields.io/github/stars/aust24lzy/dsh-plugin-hub?style=flat-square" alt="GitHub stars"></a>
   <a href="https://github.com/aust24lzy/dsh-plugin-hub/network/members"><img src="https://img.shields.io/github/forks/aust24lzy/dsh-plugin-hub?style=flat-square" alt="GitHub forks"></a>
   <a href="./LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue?style=flat-square" alt="License"></a>
 </p>
 
 > 🌐 在线访问（国际）：**https://aust24lzy.github.io/dsh-plugin-hub/**
-> 🇨🇳 在线访问（国内）：**https://mfnx-1469339292.cos-website.ap-guangzhou.myqcloud.com/**
+> 🇨🇳 在线访问（国内）：**https://1d6da375127842fe97d4a7e3e98c670b.app.workbuddy.link/**
 
 ## 📖 目录
 
@@ -36,14 +36,14 @@
 - 📦 **安装命令一键复制**：`dsh plugin --profile web add github:owner/name`
 - ⌨️ **键盘快捷键**：⌘K / Ctrl+K 快速聚焦搜索
 - 🌗 暗 / 亮主题、插件详情弹窗
-- 🚀 **双线部署**：GitHub Pages（国际访问）+ 腾讯云 COS（国内访问）自动同步部署
+- 🚀 **双线部署**：GitHub Pages（国际，自动）+ CloudStudio（国内，手动快照）
 
 ## 🏗️ 技术架构
 
 - **零依赖原生 JS**：无构建工具、无框架，纯 HTML + CSS + 原生 JS，可直接静态托管
 - **共享问答引擎**：`chat-engine.js` 抽离为纯逻辑（无 DOM 依赖，全局 `window.DSHChat`），主站悬浮窗与全屏聊天页（`assistant.html`）复用同一套「意图识别 + 约束抽取 + 相关性评分」引擎
 - **数据管道**：`sync.mjs` 抓取 GitHub Search API → 相关性过滤 + 智能分类 → 生成 `plugins.json` 快照 → 前端渲染；浏览器端再对 Top 100 星标做 30 分钟级实时刷新
-- **双线部署**：GitHub Actions 每小时同步数据后，同时部署到 GitHub Pages（国际）与腾讯云 COS（国内），兼顾海内外访问速度
+- **双线部署**：GitHub Actions 每小时同步后自动部署到 GitHub Pages（国际）；国内访问经 CloudStudio 分享链接（手动部署快照）
 
 ## 🚀 快速开始
 
@@ -157,7 +157,7 @@ node scripts/sync.mjs [--out ../web/plugins.json]
 
 - 支持环境变量 `GITHUB_TOKEN` 认证（更高 API 配额）
 - 未认证限 10 req/min，脚本内置限流（约 7s/请求）
-- GitHub Actions **每小时**自动同步，并同时部署到 GitHub Pages（国际）与腾讯云 COS（国内）
+- GitHub Actions **每小时**自动同步，并部署到 GitHub Pages（国际）
 
 ## 📁 目录结构
 
@@ -171,52 +171,45 @@ node scripts/sync.mjs [--out ../web/plugins.json]
 │   ├── chat-engine.js      # 智能助手共享引擎（纯逻辑，无 DOM 依赖）
 │   ├── assistant.html      # 智能助手全屏聊天页
 │   └── plugins.json        # 数据快照（由 sync.mjs 自动生成）
-├── .github/workflows/      # 自动同步 + 双线部署（GitHub Pages + 腾讯云 COS）
+├── .github/workflows/      # 自动同步 + 部署到 GitHub Pages（另含 COS 上传）
 └── LICENSE                 # MIT 协议
 ```
 
 ## 🚀 部署
 
-本项目通过 GitHub Actions 自动**双线部署**，兼顾海内外访问：
+本项目通过 GitHub Actions 自动部署，并额外提供国内访问通道：
 
-| 通道 | 平台 | 适用场景 |
-| --- | --- | --- |
-| 🌍 国际 | GitHub Pages | `https://aust24lzy.github.io/dsh-plugin-hub/` |
-| 🇨🇳 国内 | 腾讯云 COS | `https://mfnx-1469339292.cos-website.ap-guangzhou.myqcloud.com/` |
+| 通道 | 平台 | 访问地址 | 更新方式 |
+| --- | --- | --- | --- |
+| 🌍 国际 | GitHub Pages | `https://aust24lzy.github.io/dsh-plugin-hub/` | 每小时自动 |
+| 🇨🇳 国内 | CloudStudio | `https://1d6da375127842fe97d4a7e3e98c670b.app.workbuddy.link/` | 手动部署快照 |
 
-### 1. GitHub Pages（国际）
+### 1. GitHub Pages（国际，自动）
 
 1. **启用 Pages**：仓库 `Settings → Pages` 选择 `Deploy from a branch`，分支设为 `gh-pages`、目录 `/(root)`
 2. **授权 Action**：`Settings → Actions → General` 勾选 `Read and write permissions`
+3. 推送代码到 `main` 分支，或手动在 `Actions` 页运行 `Sync & Deploy` workflow（每小时第 30 分钟自动执行一次）
 
-### 2. 腾讯云 COS（国内）
+### 2. CloudStudio（国内，手动）
 
-在仓库 `Settings → Secrets and variables → Actions` 添加以下 4 个密钥：
+国内访问使用 WorkBuddy CloudStudio 部署的分享链接（免备案、国内直连）：
+
+`https://1d6da375127842fe97d4a7e3e98c670b.app.workbuddy.link/`
+
+> ⚠️ CloudStudio 是**静态快照**，GitHub Actions 每小时自动同步不会更新到此处；`web/` 有改动后需重新部署一次。
+
+### 3. 腾讯云 COS（可选，需备案域名）
+
+`deploy.yml` 已配置每小时同步上传到腾讯云 COS 桶 `mfnx-1469339292`（`ap-guangzhou`）。但注意：腾讯云 COS 规定 **2024 年 1 月 1 日后创建的桶，用默认域名（含 `cos-website` 静态网站域名）访问会强制下载、无法预览**。
+
+如需通过 COS 正常访问，需**绑定已备案的自定义域名**（或接 CDN 域名）。所需 4 个密钥：
 
 | 密钥名 | 说明 |
 | --- | --- |
 | `TENCENT_SECRET_ID` | 腾讯云 API 密钥 SecretId |
 | `TENCENT_SECRET_KEY` | 腾讯云 API 密钥 SecretKey |
-| `COS_BUCKET` | COS 存储桶名称（如 `mybucket-1250000000`） |
-| `COS_REGION` | 存储桶地域（如 `ap-guangzhou`） |
-
-配置步骤：
-
-1. 在[腾讯云 COS 控制台](https://console.cloud.tencent.com/cos)创建存储桶，并开启**静态网站**功能
-2. 在[访问管理 CAM](https://console.cloud.tencent.com/cam/capi)获取 SecretId / SecretKey
-3. 将上表 4 个值填入仓库 Actions Secrets
-4. 可选：绑定自定义域名或 CDN 加速
-
-> 部署脚本使用 `coscmd` 将 `web/` 目录递归上传至存储桶根目录。
-
-### 3. 触发部署
-
-推送代码到 `main` 分支，或手动在 `Actions` 页运行 `Sync & Deploy` workflow（每小时第 30 分钟自动执行一次）。
-
-部署成功后：
-
-- 国际访问：`https://aust24lzy.github.io/dsh-plugin-hub/`
-- 国内访问：`https://mfnx-1469339292.cos-website.ap-guangzhou.myqcloud.com/`
+| `COS_BUCKET` | COS 存储桶名称（`mfnx-1469339292`） |
+| `COS_REGION` | 存储桶地域（`ap-guangzhou`） |
 
 ## 🤝 贡献指南
 
