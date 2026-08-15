@@ -1,0 +1,7 @@
+# 依赖与系统文件
+node_modules/
+.DS_Store
+Thumbs.db
+*.log
+.idea/
+.vscode/

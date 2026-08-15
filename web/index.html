@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>DSH Plugin Hub · DeepSeek Harness 插件导航</title>
+<meta name="description" content="DeepSeek Harness（DSH）开源插件导航站，按 Stars 实时排行，智能分类，帮你快速找到需要的插件。" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <!-- 背景光晕 -->
+  <div class="bg-glow" aria-hidden="true">
+    <div class="glow glow-1"></div>
+    <div class="glow glow-2"></div>
+    <div class="glow glow-3"></div>
+    <div class="grid-overlay"></div>
+  </div>
+
+  <!-- 顶部导航 -->
+  <header class="nav" id="nav">
+    <div class="nav-inner">
+      <a class="brand" href="#top">
+        <span class="brand-mark">
+          <svg viewBox="0 0 24 24" fill="none" width="22" height="22" aria-hidden="true">
+            <path d="M12 3c2.5 2.2 3.6 4.4 3.6 6.6 0 2.6-1.6 4.4-3.6 4.4s-3.6-1.8-3.6-4.4C8.4 7.4 9.5 5.2 12 3Z" fill="currentColor"/>
+            <path d="M12 14.5c3.2 0 5.8 2 5.8 5 0 .8-.2 1.5-.6 2.1-1.3-1.1-2.9-1.6-5.2-1.6s-3.9.5-5.2 1.6c-.4-.6-.6-1.3-.6-2.1 0-3 2.6-5 5.8-5Z" fill="currentColor" opacity=".85"/>
+            <path d="M5 7.5c1.8 1.4 2.6 3 2.6 4.5S6.8 15.1 5 16.5c-1.3-1.3-2-2.8-2-4.5S3.7 8.8 5 7.5Z" fill="currentColor" opacity=".6"/>
+            <path d="M19 7.5c1.3 1.3 2 2.8 2 4.5s-.7 3.2-2 4.5c-1.8-1.4-2.6-3-2.6-4.5S17.2 8.9 19 7.5Z" fill="currentColor" opacity=".6"/>
+          </svg>
+        </span>
+        <span class="brand-text">DSH<span class="brand-accent">·</span>PluginHub</span>
+        <span class="brand-tag">BETA</span>
+      </a>
+      <nav class="nav-links">
+        <a href="#browse" class="nav-link">插件市场</a>
+        <a href="#rank" class="nav-link">排行榜</a>
+        <a href="#assistant" class="nav-link">智能助手</a>
+        <a href="https://github.com/deepseek-ai/deepseek-harness" target="_blank" rel="noopener" class="nav-link nav-external">官方仓库 ↗</a>
+      </nav>
+      <div class="nav-actions">
+        <button class="gh-btn" onclick="window.open('https://github.com/topics/dsh-plugin','_blank')" title="在 GitHub 查看 dsh-plugin 话题">
+          <svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg>
+          GitHub
+        </button>
+        <button class="icon-btn" id="themeToggle" title="切换主题" aria-label="切换主题">
+          <svg class="ico-sun" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+          <svg class="ico-moon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/></svg>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main id="top">
+    <!-- HERO -->
+    <section class="hero">
+      <div class="hero-badge">
+        <span class="pulse-dot"></span>
+        <span id="heroBadgeText">正在连接插件市场…</span>
+      </div>
+      <h1 class="hero-title">
+        万物皆插件，<br />
+        <span class="grad-text">一键找到你想要的。</span>
+      </h1>
+      <p class="hero-sub">
+        DeepSeek Harness（DSH）开源插件导航站。实时同步 GitHub <code>dsh-plugin</code> 生态，
+        按 <b>Stars</b> 动态排行、智能分类，助你 30 秒定位所需插件、快速上手 DSH。
+      </p>
+
+      <div class="hero-search">
+        <svg class="search-ico" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+        <input id="heroSearch" type="text" placeholder="搜索插件名称、功能或关键词，例如：侧边栏 / 视觉 / 记忆…" autocomplete="off" />
+        <kbd>⌘ K</kbd>
+      </div>
+
+      <div class="hero-quick" id="heroQuick">
+        <span class="quick-label">热门：</span>
+        <button class="quick-chip" data-q="侧边栏">侧边栏</button>
+        <button class="quick-chip" data-q="视觉">视觉</button>
+        <button class="quick-chip" data-q="记忆">记忆</button>
+        <button class="quick-chip" data-q="多 Agent">多 Agent</button>
+        <button class="quick-chip" data-q="终端">终端</button>
+        <button class="quick-chip" data-q="游戏">游戏</button>
+      </div>
+    </section>
+
+    <!-- 统计 -->
+    <section class="stats" id="stats">
+      <div class="stat-card">
+        <div class="stat-num" id="statPlugins">–</div>
+        <div class="stat-label">收录插件</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num" id="statStars">–</div>
+        <div class="stat-label">累计 Stars</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num" id="statCats">–</div>
+        <div class="stat-label">智能分类</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num" id="statUpdated">–</div>
+        <div class="stat-label">数据更新时间</div>
+      </div>
+    </section>
+
+    <!-- 分类 -->
+    <section class="section" id="browse">
+      <div class="section-head">
+        <div>
+          <h2 class="section-title">插件市场</h2>
+          <p class="section-desc" id="resultCount">加载中…</p>
+        </div>
+        <div class="sort-group">
+          <label class="sort-label">排序</label>
+          <div class="seg" id="sortSeg">
+            <button class="seg-btn active" data-sort="stars">Stars</button>
+            <button class="seg-btn" data-sort="updated">最近更新</button>
+            <button class="seg-btn" data-sort="forks">Forks</button>
+            <button class="seg-btn" data-sort="created">最新收录</button>
+          </div>
+          <button class="icon-btn sort-order" id="sortOrder" title="切换升降序" aria-label="切换升降序">
+            <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M19 12l-7 7-7-7"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="cat-bar" id="catBar">
+        <button class="cat-chip active" data-cat="all"><span class="cat-emoji">✨</span>全部</button>
+        <!-- 分类由 JS 注入 -->
+      </div>
+
+      <div class="filter-row">
+        <div class="filter-chips" id="filterChips">
+          <button class="fchip" data-f="hot">🔥 高星榜 (≥100)</button>
+          <button class="fchip" data-f="new">🆕 近 7 天新增</button>
+          <button class="fchip" data-f="cn">🇨🇳 中文友好</button>
+          <button class="fchip" data-f="active">🟢 近 30 天活跃</button>
+        </div>
+        <div class="result-summary" id="resultSummary"></div>
+      </div>
+
+      <div class="grid" id="pluginGrid"></div>
+      <div class="load-more-wrap">
+        <button class="load-more" id="loadMore">加载更多</button>
+      </div>
+    </section>
+
+    <!-- 排行榜 -->
+    <section class="section" id="rank">
+      <div class="section-head">
+        <div>
+          <h2 class="section-title">🏆 Stars 排行榜 Top 10</h2>
+          <p class="section-desc">按 GitHub Stars 动态排名，数据每日自动更新</p>
+        </div>
+      </div>
+      <div class="rank-list" id="rankList"></div>
+    </section>
+
+    <!-- 快速上手 -->
+    <section class="section" id="guide">
+      <div class="section-head">
+        <div>
+          <h2 class="section-title">30 秒上手 DSH</h2>
+          <p class="section-desc">一条命令启动，三条命令装插件</p>
+        </div>
+      </div>
+      <div class="guide-grid">
+        <div class="guide-card">
+          <div class="guide-step">01</div>
+          <h3>启动 Harness</h3>
+          <p>Node.js 环境下一行命令拉起 Web 界面</p>
+          <div class="code-block"><span class="code-prompt">$</span> npx @deepseek-ai/dsh web</div>
+        </div>
+        <div class="guide-card">
+          <div class="guide-step">02</div>
+          <h3>找到插件</h3>
+          <p>在本站搜索或让智能助手推荐，进入插件 GitHub 主页</p>
+          <div class="code-block"><span class="code-prompt">#</span> 查看插件 README 获取安装名</div>
+        </div>
+        <div class="guide-card">
+          <div class="guide-step">03</div>
+          <h3>安装使用</h3>
+          <p>在 DSH 内用 /plugin 安装，或直接命令行安装</p>
+          <div class="code-block"><span class="code-prompt">$</span> dsh plugin add &lt;plugin&gt;</div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+      <div class="footer-brand">
+        <span class="brand-text">DSH<span class="brand-accent">·</span>PluginHub</span>
+        <p>非官方社区项目，数据源自 GitHub <code>dsh-plugin</code> 生态，每日定时同步。</p>
+      </div>
+      <div class="footer-links">
+        <a href="https://github.com/deepseek-ai/deepseek-harness" target="_blank" rel="noopener">官方仓库</a>
+        <a href="https://github.com/topics/dsh-plugin" target="_blank" rel="noopener">插件生态</a>
+        <a href="https://www.deepseek.com/harness/" target="_blank" rel="noopener">官网</a>
+      </div>
+    </div>
+    <div class="footer-bottom">© 2026 DSH Plugin Hub · Everything is a Plugin 🐋</div>
+  </footer>
+
+  <!-- 插件详情弹窗 -->
+  <div class="modal-overlay" id="modalOverlay">
+    <div class="modal" id="modal" role="dialog" aria-modal="true"></div>
+  </div>
+
+  <!-- 智能助手 -->
+  <button class="assistant-fab" id="assistantFab" title="智能问答助手" aria-label="打开智能问答助手">
+    <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8V4H8"/><rect x="4" y="8" width="16" height="12" rx="2"/><path d="M2 14h2M20 14h2M15 13v2M9 13v2"/></svg>
+    <span class="fab-ping"></span>
+  </button>
+
+  <div class="assistant-panel" id="assistantPanel">
+    <div class="assistant-head">
+      <div class="assistant-title">
+        <span class="assistant-avatar">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8V4H8"/><rect x="4" y="8" width="16" height="12" rx="2"/><path d="M2 14h2M20 14h2M15 13v2M9 13v2"/></svg>
+        </span>
+        <div>
+          <div class="assistant-name">插件导购助手</div>
+          <div class="assistant-status"><span class="pulse-dot"></span>在线 · 已学习 <span id="asstCount">–</span> 个插件</div>
+        </div>
+      </div>
+      <button class="icon-btn" id="assistantClose" title="关闭" aria-label="关闭助手">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="assistant-body" id="assistantBody">
+      <div class="msg msg-bot">
+        <div class="bubble">你好！我是插件导购助手 🐋<br/>告诉我你想做的事，我帮你找到最合适的 DSH 插件。<br/><br/>试试问我：<br/>「有没有能看图/OCR 的插件？」<br/>「推荐几个多 Agent 协作的」<br/>「侧边栏最好用的是哪个？」</div>
+      </div>
+    </div>
+    <div class="assistant-suggests" id="assistantSuggests">
+      <button class="sugg-chip">推荐高星插件</button>
+      <button class="sugg-chip">怎么安装插件？</button>
+      <button class="sugg-chip">有视觉/OCR 插件吗</button>
+      <button class="sugg-chip">多 Agent 团队协作</button>
+    </div>
+    <div class="assistant-input">
+      <textarea id="assistantInput" rows="1" placeholder="描述你的需求…" autocomplete="off"></textarea>
+      <button class="send-btn" id="assistantSend" aria-label="发送">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- toast -->
+  <div class="toast" id="toast"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
