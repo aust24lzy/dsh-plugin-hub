@@ -74,6 +74,7 @@
       if (!res.ok) throw new Error('HTTP ' + res.status);
       DATA = await res.json();
       DATA.categories.forEach((c) => (catMap[c.id] = c));
+      if (window.DSHChat) window.DSHChat.setData(DATA);
       badge.textContent = `已连接插件市场 · 收录 ${DATA.fetched} 个插件`;
     } catch (e) {
       badge.textContent = '⚠️ 数据加载失败，请通过本地服务器访问';
@@ -386,25 +387,110 @@
     bindAssistant();
   }
 
-  // ---------- 智能问答助手 ----------
+  // =====================================================
+  // 智能问答助手（Agent 应用）—— 引擎在 chat-engine.js（window.DSHChat）
+  // =====================================================
   function bindAssistant() {
     const fab = $('#assistantFab');
     const panel = $('#assistantPanel');
     const close = $('#assistantClose');
+    const clearBtn = $('#assistantClear');
+    const expandBtn = $('#assistantExpand');
     const input = $('#assistantInput');
     const send = $('#assistantSend');
     const body = $('#assistantBody');
     const suggests = $('#assistantSuggests');
 
+    const HKEY = 'dsh_ph_chat';
+    let history = loadHistory();
+    function loadHistory() {
+      try { const h = JSON.parse(localStorage.getItem(HKEY) || '[]'); return Array.isArray(h) ? h : []; } catch (e) { return []; }
+    }
+    const saveHistory = () => { try { localStorage.setItem(HKEY, JSON.stringify(history)); } catch (e) {} };
+
+    // 轻量 Markdown
+    function md(s) {
+      return esc(s)
+        .replace(/\*\*(.+?)\*\*/g, '<b>$1</b>')
+        .replace(/`([^`]+)`/g, '<code>$1</code>')
+        .replace(/\n/g, '<br/>');
+    }
+
+    function welcomeHTML() {
+      return md('你好！我是 DSH 插件导购 Agent 🐋\n我已学完全部插件，可以帮你：\n\n· 🔍 **按需求找插件** — 「找能看图的」\n· 🏆 **推荐热门** — 「推荐高星插件」\n· 📂 **逛分类** — 「有哪些分类」\n· ⚖️ **对比插件** — 「对比 A 和 B」\n· 📊 **看统计** — 「一共有多少插件」\n· 📦 **安装教程** — 「怎么安装」\n\n💡 点右上角 ⤢ 进入全屏版，体验更好～');
+    }
+
+    const scroll = () => { body.scrollTop = body.scrollHeight; };
+
+    function addUser(q) {
+      const div = document.createElement('div');
+      div.className = 'msg msg-user';
+      div.innerHTML = `<div class="bubble">${esc(q).replace(/\n/g, '<br/>')}</div>`;
+      body.appendChild(div);
+      history.push({ role: 'user', text: q });
+      saveHistory();
+      scroll();
+    }
+
+    function typing() {
+      const div = document.createElement('div');
+      div.className = 'msg msg-bot';
+      div.innerHTML = `<div class="bubble"><span class="typing"><span></span><span></span><span></span></span></div>`;
+      body.appendChild(div);
+      scroll();
+      return div;
+    }
+
+    const bindRec = (el) => el.addEventListener('click', () => openModal(el.dataset.full));
+
+    function recCards(list) {
+      return (list || []).slice(0, 4).map((p) => {
+        const cat = catOf(p.category);
+        return `<button class="rec" data-full="${esc(p.full_name)}">
+          <span class="rec-avatar"><img src="${esc(p.avatar)}" alt="" loading="lazy" onerror="this.style.display='none'" /></span>
+          <span class="rec-main">
+            <span class="rec-name">${esc(p.name)}</span>
+            <span class="rec-desc">${esc((p.description || '').slice(0, 60))}</span>
+            <span class="rec-tags">${cat ? `<i style="color:${cat.color}">${cat.emoji} ${esc(cat.label)}</i>` : ''}${p.language ? `<i>${esc(p.language)}</i>` : ''}</span>
+          </span>
+          <span class="rec-side">⭐ ${fmt(p.stars)}</span>
+        </button>`;
+      }).join('');
+    }
+
+    function ask(query) {
+      open();
+      addUser(query);
+      const t = typing();
+      setTimeout(() => {
+        const r = window.DSHChat.reply(query);
+        let html = md(r.text || '');
+        if (r.recs && r.recs.length) html += recCards(r.recs);
+        t.querySelector('.bubble').innerHTML = html;
+        t.querySelectorAll('.rec').forEach(bindRec);
+        history.push({ role: 'bot', html });
+        saveHistory();
+        scroll();
+      }, 420 + Math.random() * 300);
+    }
+
     const open = () => panel.classList.add('open');
     const toggle = () => panel.classList.toggle('open');
     fab.addEventListener('click', toggle);
     close.addEventListener('click', () => panel.classList.remove('open'));
+    expandBtn.addEventListener('click', () => { location.href = 'assistant.html'; });
+    clearBtn.addEventListener('click', () => {
+      history = [];
+      window.DSHChat.reset();
+      saveHistory();
+      body.innerHTML = welcomeHTML();
+      scroll();
+    });
 
     suggests.addEventListener('click', (e) => {
       const chip = e.target.closest('.sugg-chip');
       if (!chip) return;
-      ask(chip.textContent);
+      ask(chip.dataset.q || chip.textContent.trim());
     });
 
     const doSend = () => {
@@ -420,124 +506,20 @@
     });
     input.addEventListener('input', () => { input.style.height = 'auto'; input.style.height = Math.min(input.scrollHeight, 110) + 'px'; });
 
-    function addMsg(text, who) {
-      const div = document.createElement('div');
-      div.className = 'msg msg-' + who;
-      div.innerHTML = `<div class="bubble">${text}</div>`;
-      body.appendChild(div);
-      body.scrollTop = body.scrollHeight;
-      return div;
+    // 初始化
+    if (history.length) {
+      body.innerHTML = '';
+      history.forEach((m) => {
+        const div = document.createElement('div');
+        div.className = 'msg msg-' + (m.role === 'user' ? 'user' : 'bot');
+        div.innerHTML = `<div class="bubble">${m.role === 'user' ? esc(m.text).replace(/\n/g, '<br/>') : (m.html || '')}</div>`;
+        body.appendChild(div);
+      });
+      body.querySelectorAll('.rec').forEach(bindRec);
+    } else {
+      body.innerHTML = welcomeHTML();
     }
-
-    function typing() {
-      const div = document.createElement('div');
-      div.className = 'msg msg-bot';
-      div.innerHTML = `<div class="bubble"><span class="typing"><span></span><span></span><span></span></span></div>`;
-      body.appendChild(div);
-      body.scrollTop = body.scrollHeight;
-      return div;
-    }
-
-    function ask(query) {
-      open();
-      addMsg(esc(query), 'user');
-      const t = typing();
-      setTimeout(() => {
-        const { text, recs } = answer(query);
-        let html = esc(text);
-        if (recs && recs.length) {
-          html += recs.slice(0, 4).map((p) => {
-            const cat = catOf(p.category);
-            return `<button class="rec" data-full="${esc(p.full_name)}"><b>${esc(p.name)}</b><span class="rec-stars">⭐ ${fmt(p.stars)}</span><br/><span style="color:var(--text-dim);font-size:12px">${esc((p.description || '').slice(0, 46))}</span> <span style="color:${cat ? cat.color : '#888'};font-size:11px">· ${cat ? esc(cat.label) : '其他'}</span></button>`;
-          }).join('');
-        }
-        t.querySelector('.bubble').innerHTML = html;
-        t.querySelectorAll('.rec').forEach((el) => el.addEventListener('click', () => openModal(el.dataset.full)));
-        body.scrollTop = body.scrollHeight;
-      }, 450 + Math.random() * 350);
-    }
-  }
-
-  // 助手应答引擎（关键词 + 同义词 → 分类/功能匹配）
-  const SYNONYMS = {
-    'ui': ['界面', '侧边栏', '皮肤', '主题', '面板', '看板', '桌面', '终端界面', 'sidebar', 'ui', 'theme', 'skin', 'panel', 'web'],
-    'vision': ['看图', '视觉', '图像', '图片', '截图', 'ocr', '识别', '多模态', 'vision', 'image', 'picture', 'photo', 'screenshot'],
-    'memory': ['记忆', '上下文', '知识库', '长期记忆', '笔记', 'memory', 'context', 'knowledge', 'note'],
-    'agent': ['多agent', '多智能体', '团队', '协作', '编排', '工作流', '子代理', 'swarm', 'workflow', 'team', 'subagent', 'orchestrat'],
-    'dev': ['开发', '代码', '调试', '终端', 'git', '编辑器', 'sdk', 'cli', 'code', 'debug', 'editor', 'terminal', 'shell', 'browser'],
-    'data': ['数据', '搜索', '数据库', '爬虫', '检索', '查询', 'data', 'search', 'database', 'scrape', 'crawl', 'sql'],
-    'integration': ['迁移', '桥接', '集成', '接入', '导入', '导出', 'claude', 'cursor', 'notion', 'github', 'migrate', 'bridge', 'import', 'export', 'connector'],
-    'productivity': ['效率', '任务', '快捷键', '分享', 'todo', 'task', 'productivity', 'shortcut', 'share'],
-    'fun': ['游戏', '宠物', '彩蛋', '娱乐', '鲸鱼', '小游戏', '整活', 'game', 'pet', 'fun', 'meme'],
-    'security': ['安全', '沙箱', '权限', '审计', 'security', 'sandbox', 'permission', 'auth'],
-  };
-
-  function tokenize(q) {
-    return q.toLowerCase().split(/[\s,，。、！？!?]+/).filter(Boolean);
-  }
-
-  function answer(query) {
-    if (!DATA) return { text: '数据还在加载中，请稍等片刻～', recs: [] };
-    const q = query.trim();
-    const ql = q.toLowerCase();
-    const toks = tokenize(q);
-
-    // 安装/使用帮助
-    if (/怎么装|如何安装|怎么用|如何使用|install|安装|入门|上手|使用教程|怎么开始|quickstart/.test(ql)) {
-      return {
-        text: 'DSH 插件的安装很简单，三步搞定：\n\n1️⃣ 启动 Harness：`npx @deepseek-ai/dsh web`\n2️⃣ 命令行安装插件：`dsh plugin add <插件名>`\n3️⃣ 重启或在设置中启用即可\n\n你也可以在下方卡片点开任意插件，查看它的 GitHub 主页和 README 获取具体安装命令。',
-        recs: []
-      };
-    }
-
-    // 排行榜/热门
-    if (/最火|最热|热门|最高|排行榜|top|best|推荐|popular|trend|哪些值得|值得装/.test(ql)) {
-      const top = DATA.plugins.slice().sort((a, b) => (b.stars || 0) - (a.stars || 0)).slice(0, 5);
-      return { text: `这是当前 GitHub Stars 最高的 ${top.length} 个插件，社区热度最高的选择 👇`, recs: top };
-    }
-
-    // 精确插件名匹配
-    const exact = DATA.plugins.filter((p) => {
-      const name = p.name.toLowerCase();
-      return ql.length >= 3 && (name === ql || name.includes(ql.replace(/\s+/g, '')) || ql.includes(name));
-    }).sort((a, b) => (b.stars || 0) - (a.stars || 0));
-    if (exact.length && ql.length >= 3) {
-      return { text: `我找到了 ${exact.length} 个名称匹配的插件：`, recs: exact.slice(0, 5) };
-    }
-
-    // 类别/功能匹配打分
-    const catHits = {};
-    let matchedCat = null;
-    for (const [cat, words] of Object.entries(SYNONYMS)) {
-      let s = 0;
-      for (const w of words) {
-        if (ql.includes(w)) s += w.length > 2 ? 3 : 2;
-      }
-      if (s > 0) catHits[cat] = s;
-    }
-    matchedCat = Object.keys(catHits).sort((a, b) => catHits[b] - catHits[a])[0] || null;
-
-    const scored = DATA.plugins.map((p) => {
-      const hay = (p.name + ' ' + p.full_name + ' ' + p.description + ' ' + (p.topics || []).join(' ')).toLowerCase();
-      let score = 0;
-      for (const t of toks) { if (t.length >= 2 && hay.includes(t)) score += 3; }
-      if (matchedCat && p.category === matchedCat) score += 8;
-      // 名称命中加权
-      if (p.name.toLowerCase().includes(ql.replace(/\s+/g, '')) || ql.includes(p.name.toLowerCase())) score += 12;
-      score += Math.log10((p.stars || 0) + 2); // 星标微调
-      return { p, score };
-    }).filter((x) => x.score > 3).sort((a, b) => b.score - a.score).slice(0, 5);
-
-    if (scored.length) {
-      const cat = matchedCat ? catOf(matchedCat) : null;
-      const hint = cat ? `\n\n💡 命中分类「${cat.emoji} ${cat.label}」，以下为相关度最高的插件：` : '以下是根据你的描述匹配到的插件：';
-      return { text: '根据你的需求，我找到了这些插件' + hint, recs: scored.map((x) => x.p) };
-    }
-
-    return {
-      text: '暂时没找到精确匹配的插件 🤔\n\n你可以试试：\n· 换一个更具体的关键词（如「侧边栏」「OCR」「多 Agent」）\n· 直接告诉我插件的英文名\n· 问「推荐高星插件」看热门榜单',
-      recs: []
-    };
+    scroll();
   }
 
   // ---------- toast ----------
