@@ -60,4 +60,4 @@ jobs:
                         -r ${{ secrets.COS_REGION }}
 
       - name: 上传到 COS
-        run: coscmd upload -rs --delete ./web/ /
+        run: coscmd upload -rs ./web/ /
