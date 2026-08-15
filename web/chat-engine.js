@@ -39,6 +39,11 @@
   const hasData = () => !!DATA;
   const catOf = (id) => catMap[id] || null;
   function reset() { ctx = { lastPool: [], lastShown: 0 }; }
+  function getPlugin(fullName) {
+    if (!DATA) return null;
+    return DATA.plugins.find((x) => x.full_name === fullName) || null;
+  }
+  function getCategory(id) { return catMap[id] || null; }
 
   // ---------- 工具 ----------
   function fmt(n) {
@@ -251,5 +256,5 @@
     return r;
   }
 
-  window.DSHChat = { setData, reply, reset, hasData };
+  window.DSHChat = { setData, reply, reset, hasData, getPlugin, getCategory };
 })();

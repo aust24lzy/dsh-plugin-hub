@@ -157,6 +157,39 @@
   .toast { position: fixed; left: 50%; bottom: 30px; transform: translate(-50%, 20px); z-index: 200; background: var(--bg-elev); border: 1px solid var(--border-strong); color: var(--text); padding: 12px 20px; border-radius: 12px; font-size: 14px; box-shadow: var(--shadow); opacity: 0; pointer-events: none; transition: .3s; }
   .toast.show { opacity: 1; transform: translate(-50%, 0); }
 
+  /* 详情弹窗 */
+  .pcard { cursor: pointer; }
+  .modal-overlay { position: fixed; inset: 0; z-index: 100; background: rgba(4,6,14,.7); backdrop-filter: blur(6px); display: none; align-items: center; justify-content: center; padding: 24px; }
+  .modal-overlay.open { display: flex; }
+  .modal { width: 100%; max-width: 560px; max-height: 86vh; overflow-y: auto; background: var(--bg-elev); border: 1px solid var(--border-strong); border-radius: 20px; padding: 30px; animation: modalIn .3s ease; box-shadow: var(--shadow); }
+  @keyframes modalIn { from { opacity: 0; transform: scale(.96) translateY(10px) } to { opacity: 1; transform: none } }
+  .modal-head { display: flex; gap: 16px; align-items: flex-start; margin-bottom: 16px; justify-content: space-between; }
+  .modal-head-left { display: flex; gap: 16px; align-items: flex-start; min-width: 0; flex: 1; }
+  .modal-avatar { width: 56px; height: 56px; border-radius: 14px; overflow: hidden; border: 1px solid var(--border); flex-shrink: 0; }
+  .modal-avatar img { width: 100%; height: 100%; object-fit: cover; }
+  .modal-title { font-size: 20px; font-weight: 700; }
+  .modal-owner { font-size: 13px; color: var(--text-faint); }
+  .translate-btn { flex-shrink: 0; font-size: 13px; font-weight: 600; padding: 8px 14px; border-radius: 10px; border: 1px solid var(--border-strong); background: var(--surface); color: var(--text-dim); transition: .18s; align-self: flex-start; display: inline-flex; align-items: center; gap: 5px; cursor: pointer; }
+  .translate-btn:hover { color: var(--text); border-color: var(--accent); background: var(--surface-hover); }
+  .translate-btn:disabled { opacity: .6; cursor: default; }
+  .modal-translated { margin-top: -8px; margin-bottom: 18px; padding: 14px 16px; border-radius: 12px; background: var(--grad-soft); border: 1px solid var(--border); }
+  .translated-label { font-size: 12px; font-weight: 600; color: var(--accent-2); margin-bottom: 8px; letter-spacing: .02em; }
+  .translated-text { font-size: 14.5px; color: var(--text); line-height: 1.75; }
+  .modal-desc { font-size: 14.5px; color: var(--text-dim); margin-bottom: 18px; line-height: 1.7; }
+  .modal-stats { display: flex; gap: 22px; padding: 16px 0; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); margin-bottom: 18px; }
+  .modal-stat .num { font-family: var(--font-display); font-weight: 700; font-size: 20px; }
+  .modal-stat .lbl { font-size: 12px; color: var(--text-faint); }
+  .modal-topics { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 20px; }
+  .topic-tag { font-size: 12px; color: var(--accent-2); background: var(--grad-soft); border: 1px solid var(--border); padding: 3px 10px; border-radius: 999px; }
+  .install-cmd { font-size: 13px; color: #e8ecf6; background: #0d1322; border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; margin: 16px 0 6px; overflow-x: auto; white-space: nowrap; }
+  [data-theme="light"] .install-cmd { background: #141832; }
+  .modal-actions { display: flex; gap: 10px; }
+  .btn { flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 13px; border-radius: 12px; font-size: 14px; font-weight: 600; transition: .18s; text-decoration: none; }
+  .btn-primary { background: var(--grad); color: #fff; box-shadow: 0 8px 20px -6px rgba(99,102,241,.55); }
+  .btn-primary:hover { filter: brightness(1.08); transform: translateY(-1px); }
+  .btn-ghost { border: 1px solid var(--border-strong); background: var(--surface); color: var(--text-dim); }
+  .btn-ghost:hover { color: var(--text); border-color: var(--accent); }
+
   @media (max-width: 600px) {
     .topbar-status { display: none; }
     .tbtn .hide-sm { display: none; }
@@ -210,6 +243,11 @@
   </main>
 
   <div class="toast" id="toast"></div>
+
+  <!-- 插件详情弹窗 -->
+  <div class="modal-overlay" id="modalOverlay">
+    <div class="modal" id="modal" role="dialog" aria-modal="true"></div>
+  </div>
 
   <script src="chat-engine.js"></script>
   <script>
@@ -322,7 +360,7 @@
       const catLabel = cat ? `${cat.emoji} ${cat.label}` : (p.category || '其他');
       const catColor = cat ? cat.color : '#64748b';
       const cmd = `dsh plugin --profile web add github:${p.owner}/${p.name}`;
-      return `<div class="pcard">
+      return `<div class="pcard" data-full="${esc(p.full_name)}">
         <div class="pcard-head">
           <img class="pcard-avatar" src="${esc(p.avatar)}" alt="" loading="lazy" onerror="this.style.display='none'" />
           <div class="pcard-title">
@@ -347,6 +385,87 @@
       </div>`;
     }
 
+    // ---------- 详情弹窗 ----------
+    function isEnglish(text) {
+      if (!text || !text.trim()) return false;
+      const ch = (text.match(/[\u4e00-\u9fff]/g) || []).length;
+      return ch / text.length < 0.1 && /[a-zA-Z]/.test(text);
+    }
+    async function translateText(text) {
+      if (!text) return text;
+      if (text.length > 480) text = text.slice(0, 480) + '...';
+      try {
+        const res = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=en|zh-CN`);
+        const data = await res.json();
+        return data.responseData?.translatedText || text;
+      } catch (e) {
+        console.warn('translate failed:', e);
+        return text;
+      }
+    }
+    function openPluginDetail(fullName) {
+      const p = window.DSHChat.getPlugin(fullName);
+      if (!p) return;
+      const cat = window.DSHChat.getCategory(p.category);
+      const topics = (p.topics || []).slice(0, 8).map((t) => `<span class="topic-tag">#${esc(t)}</span>`).join('');
+      const install = p.homepage || p.html_url;
+      const showTranslate = isEnglish(p.description);
+      const installCmd = `dsh plugin --profile web add github:${p.owner}/${p.name}`;
+      $('#modal').innerHTML = `
+        <div class="modal-head">
+          <div class="modal-head-left">
+            <div class="modal-avatar"><img src="${esc(p.avatar)}" alt="" /></div>
+            <div>
+              <div class="modal-title">${esc(p.name)}</div>
+              <div class="modal-owner">${esc(p.full_name)} · ${cat ? esc(cat.label) : '其他'}</div>
+            </div>
+          </div>
+          ${showTranslate ? '<button class="translate-btn" id="translateBtn" title="将英文描述翻译为中文">🌐 翻译</button>' : ''}
+        </div>
+        <div class="modal-desc" id="modalDesc">${esc(p.description) || '暂无描述'}</div>
+        <div class="modal-translated" id="modalTranslated" style="display:none"></div>
+        <div class="modal-stats">
+          <div class="modal-stat"><div class="num" style="color:var(--star)">⭐ ${fmt(p.stars)}</div><div class="lbl">Stars</div></div>
+          <div class="modal-stat"><div class="num">${fmt(p.forks)}</div><div class="lbl">Forks</div></div>
+          <div class="modal-stat"><div class="num">${esc(p.language) || '—'}</div><div class="lbl">语言</div></div>
+          <div class="modal-stat"><div class="num">${esc(p.license) || '—'}</div><div class="lbl">协议</div></div>
+          <div class="modal-stat"><div class="num">${timeAgo(p.updated_at)}</div><div class="lbl">更新</div></div>
+        </div>
+        ${topics ? `<div class="modal-topics">${topics}</div>` : ''}
+        <div class="install-cmd">${esc(installCmd)}</div>
+        <div class="modal-actions">
+          <a class="btn btn-primary" href="${esc(p.html_url)}" target="_blank" rel="noopener">GitHub 主页 ↗</a>
+          ${install && install !== p.html_url ? `<a class="btn btn-ghost" href="${esc(install)}" target="_blank" rel="noopener">项目主页</a>` : ''}
+        </div>`;
+      $('#modalOverlay').classList.add('open');
+
+      const tBtn = $('#translateBtn');
+      if (tBtn) {
+        tBtn.addEventListener('click', async () => {
+          const target = $('#modalTranslated');
+          if (target.style.display !== 'none') {
+            target.style.display = 'none';
+            tBtn.textContent = '🌐 翻译';
+            return;
+          }
+          const original = tBtn.textContent;
+          tBtn.textContent = '⏳ 翻译中...';
+          tBtn.disabled = true;
+          const translated = await translateText(p.description);
+          if (translated && translated !== p.description) {
+            target.innerHTML = `<div class="translated-label">🌐 中文翻译</div><div class="translated-text">${esc(translated)}</div>`;
+            target.style.display = 'block';
+            tBtn.textContent = '🌐 隐藏';
+          } else {
+            tBtn.textContent = '😅 翻译失败';
+            setTimeout(() => (tBtn.textContent = original), 1800);
+          }
+          tBtn.disabled = false;
+        });
+      }
+    }
+    function closePluginDetail() { $('#modalOverlay').classList.remove('open'); }
+
     function renderBot(r) {
       let html = md(r.text || '');
       if (r.recs && r.recs.length) html += r.recs.slice(0, 4).map(pluginCard).join('');
@@ -358,9 +477,12 @@
       const t = typing();
       setTimeout(() => {
         const r = window.DSHChat.reply(query);
-        t.querySelector('.bubble').innerHTML = renderBot(r);
-        t.querySelectorAll('.copy-btn').forEach((b) => b.addEventListener('click', () => copyText(b.dataset.cmd)));
-        history.push({ role: 'bot', html: t.querySelector('.bubble').innerHTML });
+        const bubble = t.querySelector('.bubble');
+        bubble.innerHTML = renderBot(r);
+        bubble.querySelectorAll('.pcard').forEach((c) => c.addEventListener('click', () => openPluginDetail(c.dataset.full)));
+        bubble.querySelectorAll('.copy-btn').forEach((b) => b.addEventListener('click', (e) => { e.stopPropagation(); copyText(b.dataset.cmd); }));
+        bubble.querySelectorAll('.gh-link').forEach((a) => a.addEventListener('click', (e) => e.stopPropagation()));
+        history.push({ role: 'bot', html: bubble.innerHTML });
         saveHistory();
         scroll();
       }, 420 + Math.random() * 300);
@@ -416,11 +538,18 @@
         div.innerHTML = `<div class="bubble">${m.role === 'user' ? esc(m.text).replace(/\n/g, '<br/>') : (m.html || '')}</div>`;
         messages.appendChild(div);
       });
-      messages.querySelectorAll('.copy-btn').forEach((b) => b.addEventListener('click', () => copyText(b.dataset.cmd)));
+      messages.querySelectorAll('.pcard').forEach((c) => c.addEventListener('click', () => openPluginDetail(c.dataset.full)));
+      messages.querySelectorAll('.copy-btn').forEach((b) => b.addEventListener('click', (e) => { e.stopPropagation(); copyText(b.dataset.cmd); }));
+      messages.querySelectorAll('.gh-link').forEach((a) => a.addEventListener('click', (e) => e.stopPropagation()));
     } else {
       messages.innerHTML = welcomeHTML();
     }
     scroll();
+
+    // 详情弹窗关闭
+    $('#modalOverlay').addEventListener('click', (e) => { if (e.target === e.currentTarget) closePluginDetail(); });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closePluginDetail(); });
+
     loadData();
   })();
   </script>
