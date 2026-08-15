@@ -164,6 +164,19 @@ code, kbd, .code-block { font-family: var(--font-mono); }
 .fchip:hover { color: var(--text); border-color: var(--accent); }
 .fchip.active { border-style: solid; border-color: var(--accent); color: var(--text); background: var(--grad-soft); }
 .result-summary { font-size: 13px; color: var(--text-faint); }
+.result-area { display: flex; align-items: center; gap: 10px; }
+.refresh-btn { width: 32px; height: 32px; border-radius: 9px; transition: .18s; }
+.refresh-btn:hover { color: var(--accent); border-color: var(--accent); }
+.refresh-btn:disabled { cursor: default; opacity: .6; }
+.refresh-btn.spinning svg { animation: refreshSpin .8s linear infinite; transform-origin: 50% 50%; }
+@keyframes refreshSpin { to { transform: rotate(360deg); } }
+.refresh-btn.is-rate-limited { animation: shake .35s ease; }
+@keyframes shake {
+  10%, 90% { transform: translateX(-1px); }
+  20%, 80% { transform: translateX(2px); }
+  30%, 50%, 70% { transform: translateX(-3px); }
+  40%, 60% { transform: translateX(3px); }
+}
 
 /* ===== 卡片网格 ===== */
 .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }

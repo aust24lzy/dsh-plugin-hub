@@ -364,6 +364,39 @@
     // 加载更多
     $('#loadMore').addEventListener('click', () => { state.visibleCount += 60; renderGrid(); });
 
+    // 强制刷新：5 秒内最多 3 次（滑动窗口），超限抖动 + 提示「请稍后再试」
+    const refreshBtn = $('#refreshBtn');
+    const refreshClicks = [];
+    refreshBtn.addEventListener('click', async () => {
+      const now = Date.now();
+      while (refreshClicks.length && now - refreshClicks[0] >= 5000) refreshClicks.shift();
+      if (refreshClicks.length >= 3) {
+        toast('请稍后再试');
+        refreshBtn.classList.add('is-rate-limited');
+        setTimeout(() => refreshBtn.classList.remove('is-rate-limited'), 400);
+        return;
+      }
+      refreshClicks.push(now);
+      refreshBtn.disabled = true;
+      refreshBtn.classList.add('spinning');
+      try {
+        const res = await fetch('plugins.json?t=' + Date.now(), { cache: 'no-store' });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        DATA = await res.json();
+        DATA.categories.forEach((c) => (catMap[c.id] = c));
+        if (window.DSHChat) window.DSHChat.setData(DATA);
+        state.visibleCount = 60;
+        renderAll();
+        toast(`✨ 已刷新到最新数据 · 共 ${DATA.fetched} 个插件`);
+      } catch (e) {
+        toast('刷新失败，请稍后重试');
+        console.error('force refresh failed:', e);
+      } finally {
+        refreshBtn.classList.remove('spinning');
+        refreshBtn.disabled = false;
+      }
+    });
+
     // 弹窗关闭
     $('#modalOverlay').addEventListener('click', (e) => { if (e.target === $('#modalOverlay')) $('#modalOverlay').classList.remove('open'); });
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape') $('#modalOverlay').classList.remove('open'); });
