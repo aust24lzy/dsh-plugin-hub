@@ -60,4 +60,15 @@ jobs:
                         -r ${{ secrets.COS_REGION }}
 
       - name: 上传到 COS
-        run: coscmd upload -rs ./web/ /
+        run: |
+          for i in 1 2 3; do
+            echo "=== 上传尝试 $i/3 ==="
+            if coscmd upload -rs ./web/ /; then
+              echo "上传成功"
+              exit 0
+            fi
+            echo "上传失败，30 秒后重试..."
+            sleep 30
+          done
+          echo "连续 3 次上传失败，本次部署失败"
+          exit 1
