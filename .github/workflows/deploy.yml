@@ -2,8 +2,8 @@ name: Sync & Deploy
 
 on:
   schedule:
-    # 每日 08:30 (UTC+8) = 00:30 UTC
-    - cron: '30 0 * * *'
+    # 每小时第 30 分钟运行一次（UTC），即北京时间每小时 30 分
+    - cron: '30 * * * *'
   workflow_dispatch:
   push:
     branches: [ main ]
@@ -33,7 +33,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add web/plugins.json
-          git diff --cached --quiet || git commit -m "chore: 每日同步 dsh-plugin 插件数据 [skip ci]"
+          git diff --cached --quiet || git commit -m "chore: 每小时同步 dsh-plugin 插件数据 [skip ci]"
           git push
 
       - name: 部署到 GitHub Pages
